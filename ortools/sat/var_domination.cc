@@ -1192,8 +1192,11 @@ void ScanModelForDominanceDetection(PresolveContext& context,
   const int num_vars = cp_model.variables().size();
   var_domination->Reset(num_vars);
 
+  TimeLimit* time_limit = context.time_limit();
+  
   for (int var = 0; var < num_vars; ++var) {
-    // Ignore variables that have been substituted already or are unused.
+    if (time_limit->LimitReached()) return;
+    
     if (context.IsFixed(var) || context.VariableWasRemoved(var) ||
         context.VariableIsNotUsedAnymore(var)) {
       var_domination->CanOnlyDominateEachOther({var});
@@ -1221,6 +1224,8 @@ void ScanModelForDominanceDetection(PresolveContext& context,
   std::vector<bool> c_is_free_to_increase(num_constraints);
   std::vector<bool> c_is_free_to_decrease(num_constraints);
   for (int c = 0; c < num_constraints; ++c) {
+    if (time_limit->LimitReached()) return;
+    
     const ConstraintProto& ct = cp_model.constraints(c);
     switch (ct.constraint_case()) {
       case ConstraintProto::kBoolOr:
@@ -1283,7 +1288,11 @@ void ScanModelForDominanceDetection(PresolveContext& context,
   // - the phase_ = 1 filter them, then EndSecondPhase();
   std::vector<int> tmp;
   for (int phase = 0; phase < 2; phase++) {
+    if (time_limit->LimitReached()) return;
+    
     for (int c = 0; c < num_constraints; ++c) {
+      if (time_limit->LimitReached()) return;
+      
       const ConstraintProto& ct = cp_model.constraints(c);
       switch (ct.constraint_case()) {
         case ConstraintProto::kBoolOr:
@@ -1529,9 +1538,10 @@ bool ProcessAtMostOne(
 }  // namespace
 
 bool ExploitDominanceRelations(const VarDomination& var_domination,
-                               PresolveContext* context) {
+                                PresolveContext* context) {
   const CpModelProto& cp_model = *context->working_model;
   const int num_vars = cp_model.variables_size();
+  TimeLimit* time_limit = context->time_limit();
 
   // Abort early if there is nothing to do.
   bool work_to_do = false;
@@ -1568,6 +1578,8 @@ bool ExploitDominanceRelations(const VarDomination& var_domination,
   absl::flat_hash_set<std::pair<int, int>> implications;
   const int num_constraints = cp_model.constraints_size();
   for (int c = 0; c < num_constraints; ++c) {
+    if (time_limit->LimitReached()) return true;
+    
     const ConstraintProto& ct = cp_model.constraints(c);
 
     if (ct.constraint_case() == ConstraintProto::kBoolAnd) {
