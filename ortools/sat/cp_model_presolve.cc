@@ -70,6 +70,7 @@
 #include "ortools/sat/cp_model_utils.h"
 #include "ortools/sat/diffn_util.h"
 #include "ortools/sat/diophantine.h"
+#include "ortools/sat/implied_bounds.h"
 #include "ortools/sat/inclusion.h"
 #include "ortools/sat/integer.h"
 #include "ortools/sat/integer_base.h"
@@ -8359,6 +8360,31 @@ void CpModelPresolver::Probe() {
   probing_timer->AddCounter("equiv", num_equiv);
   probing_timer->AddCounter("new_binary_clauses",
                             prober->num_new_binary_clauses());
+
+  probing_timer->AddCounter("probing_bounds_found",
+                            prober->GetNewPropagatedBounds().size());
+
+  auto* implied_bounds = model.GetOrCreate<ImpliedBounds>();
+  int num_deductions_added = 0;
+  for (const auto& [literal_var_pair, bound] :
+       implied_bounds->GetModelImpliedBounds()) {
+    const Literal lit(literal_var_pair.first);
+    const IntegerVariable int_var = literal_var_pair.second;
+    const int proto_var =
+        mapping->GetProtoVariableFromIntegerVariable(PositiveVariable(int_var));
+    if (proto_var < 0) continue;
+
+    const int lit_ref = mapping->GetProtoLiteralFromLiteral(lit);
+    if (lit_ref < 0) continue;
+
+    context_->deductions.AddDeduction(
+        lit_ref, proto_var,
+        Domain(bound.value(), kMaxIntegerValue.value()));
+    ++num_deductions_added;
+  }
+  if (num_deductions_added > 0) {
+    probing_timer->AddCounter("deductions_added", num_deductions_added);
+  }
 
   // Note that we prefer to run this after we exported all equivalence to the
   // context, so that our enforcement list can be presolved to the best of our

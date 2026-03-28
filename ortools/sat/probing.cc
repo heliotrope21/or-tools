@@ -526,6 +526,7 @@ bool Prober::ProbeOneVariableInternal(BooleanVariable b) {
               IntegerLiteral::GreaterOrEqual(var, new_bound), {}, {})) {
         return false;
       }
+      new_propagated_bounds_[var] = new_bound;
     }
   }
 
@@ -565,6 +566,9 @@ bool Prober::ProbeBooleanVariables(
   num_lrat_clauses_ = 0;
   num_lrat_proof_clauses_ = 0;
   num_unneeded_lrat_clauses_ = 0;
+
+  new_propagated_bounds_.clear();
+  always_propagated_bounds_.clear();
 
   // Resize the propagated sparse bitset.
   const int num_variables = sat_solver_->NumVariables();

@@ -129,6 +129,16 @@ class Prober {
     callback_ = f;
   }
 
+  const absl::btree_map<IntegerVariable, IntegerValue>&
+  GetNewPropagatedBounds() const {
+    return new_propagated_bounds_;
+  }
+
+  const absl::btree_map<IntegerVariable, IntegerValue>&
+  GetAlwaysPropagatedBounds() const {
+    return always_propagated_bounds_;
+  }
+
  private:
   bool ProbeOneVariableInternal(BooleanVariable b);
 
