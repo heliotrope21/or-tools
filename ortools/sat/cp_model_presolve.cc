@@ -10422,22 +10422,16 @@ bool CpModelPresolver::ProcessEncodingFromLinear(
       ++*num_multiple_terms;
       const int associated_lit =
           context_->GetOrCreateVarValueEncoding(target_ref, value);
-      for (const int lit : literals) {
-        context_->AddImplication(lit, associated_lit);
-      }
-
-      // All false means associated_lit is false too.
-      // But not for the rhs case if we are not in exactly one.
-      if (in_exactly_one || value != rhs) {
-        // TODO(user): Instead of bool_or + implications, we could add an
-        // exactly one! Experiment with this. In particular it might capture
-        // more structure for later heuristic to add the exactly one instead.
-        // This also applies to automata/table/element expansion.
-        auto* bool_or =
-            context_->working_model->add_constraints()->mutable_bool_or();
-        for (const int lit : literals) bool_or->add_literals(lit);
-        bool_or->add_literals(NegatedRef(associated_lit));
-      }
+      
+      // Instead of bool_or + implications, use exactly_one constraint.
+      // This is equivalent to:
+      //   lit => associated_lit (for each lit)
+      //   lit1 ∨ lit2 ∨ ... ∨ ¬associated_lit
+      // And provides stronger propagation.
+      auto* exactly_one =
+          context_->working_model->add_constraints()->mutable_exactly_one();
+      for (const int lit : literals) exactly_one->add_literals(lit);
+      exactly_one->add_literals(NegatedRef(associated_lit));
     }
   }
 
